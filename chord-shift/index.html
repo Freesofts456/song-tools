@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chord Shift</title>
+<meta name="description" content="Free online chord transposer. Paste a chord sheet, pick a key, get a capo suggestion.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: two panes. Chord sheet source on the left; controls, a 12-key strip and the transposed sheet on the right. Stacks on phones. */
+:root {
+  --bg: #E8EDF1;
+  --surface: #F6F8FA;
+  --ink: #0F1A25;
+  --muted: #546576;
+  --line: #C6D1DB;
+  --accent: #0A6C76;
+  --accent-ink: #FFFFFF;
+  --mark: #B5651D;
+  --font-display: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B131B;
+    --surface: #111C26;
+    --ink: #E5ECF2;
+    --muted: #8CA0B2;
+    --line: #25384A;
+    --accent: #5ECFD9;
+    --accent-ink: #06222A;
+    --mark: #E3A560;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B131B;
+  --surface: #111C26;
+  --ink: #E5ECF2;
+  --muted: #8CA0B2;
+  --line: #25384A;
+  --accent: #5ECFD9;
+  --accent-ink: #06222A;
+  --mark: #E3A560;
+  color-scheme: dark;
+}
+
+html { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-block: 22px 44px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.top { margin-bottom: 20px; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+.top p { margin: 0; color: var(--muted); max-width: 62ch; }
+h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.panes {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .panes { grid-template-columns: minmax(0, 1fr); }
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+  min-width: 0;
+}
+.lab {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.sr {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* source pane */
+.samples { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.samples .lab { width: 100%; margin-bottom: 2px; }
+textarea {
+  width: 100%;
+  min-height: 380px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: auto;
+}
+.note { margin: 10px 0 0; font-size: 13px; color: var(--muted); max-width: 60ch; }
+
+/* buttons and fields */
+.btn {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  min-height: 36px;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.btn.primary:hover { filter: brightness(1.08); color: var(--accent-ink); }
+.btn.sq { width: 40px; padding: 0; font-size: 18px; line-height: 1; }
+.btn.small { min-height: 30px; padding: 4px 10px; font-size: 13px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 8px;
+  min-height: 36px;
+  max-width: 100%;
+}
+
+/* controls */
+.ctl { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.ctl-row { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.field { min-width: 0; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.step {
+  min-width: 3.4ch;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 560px) {
+  .keys { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+.key {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 9px 0 8px;
+  cursor: pointer;
+  text-align: center;
+  position: relative;
+}
+.key:hover { border-color: var(--accent); }
+.key.is-orig { box-shadow: inset 0 -3px 0 var(--mark); }
+.key[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 3px; background: var(--mark); vertical-align: middle; margin-right: 6px; }
+.legend b { display: inline-block; width: 12px; height: 12px; background: var(--accent); border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+fieldset.seg { border: 0; margin: 0; padding: 0; min-width: 0; }
+.seg .opts { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg label {
+  padding: 7px 12px; font-size: 14px; cursor: pointer; min-height: 36px; display: flex; align-items: center;
+  border-right: 1px solid var(--line);
+}
+.seg label:last-child { border-right: 0; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg input:checked + span { color: var(--accent-ink); }
+.seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.chk { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
+.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+.summary { margin: 0; font-weight: 500; }
+.tip {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mark);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between;
+}
+.tip[hidden] { display: none; }
+.tip p { margin: 0; min-width: 0; flex: 1 1 260px; }
+.chips-wrap { margin-bottom: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+.empty { color: var(--muted); font-size: 13px; }
+
+/* sheet */
+.sheet-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 8px; }
+.sheet-head h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0;
+  flex: 1 1 200px;
+  min-width: 0;
+  text-wrap: balance;
+}
+#copyMsg { font-size: 13px; color: var(--muted); }
+.sheet {
+  --sheet-size: 15px;
+  font-family: var(--font-mono);
+  font-size: var(--sheet-size);
+  line-height: 1.4;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 4px;
+}
+.ln { white-space: pre; min-height: 1.4em; }
+.ln.ch { color: var(--accent); font-weight: 500; }
+.ln.sec {
+  font-family: var(--font-body);
+  font-size: 0.74em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.9em;
+}
+.ln.blank { min-height: 0.9em; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .key { transition: border-color 0.12s, background-color 0.12s; }
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Chord Shift</h1>
+    <p>Transpose chord sheets to any key. Paste chords above the lyrics, or ChordPro with chords in [brackets].</p>
+  </header>
+
+  <main class="panes">
+    <section class="panel" aria-labelledby="src-h">
+      <h2 id="src-h">Chord sheet</h2>
+      <div class="samples" id="samples" role="group" aria-label="Public domain samples">
+        <span class="lab">Public domain samples</span>
+      </div>
+      <label class="sr" for="src">Chord sheet text</label>
+      <textarea id="src" spellcheck="false" wrap="off" autocomplete="off"></textarea>
+      <p class="note">Everything stays in your browser. Paste only sheets you have the right to use. The samples are public domain.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="out-h">
+      <h2 id="out-h">Transposed</h2>
+
+      <div class="ctl">
+        <div class="ctl-row">
+          <div class="field">
+            <span class="lab" id="lab-step">Semitones</span>
+            <div class="stepper" role="group" aria-labelledby="lab-step">
+              <button type="button" class="btn sq" id="down" aria-label="Down one semitone">&minus;</button>
+              <output class="step" id="stepOut" aria-live="polite">0</output>
+              <button type="button" class="btn sq" id="up" aria-label="Up one semitone">+</button>
+              <button type="button" class="btn" id="reset">Reset</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="lab" for="origSel">Original key</label>
+            <select id="origSel"></select>
+          </div>
+          <div class="field">
+            <label class="lab" for="capoSel">Capo</label>
+            <select id="capoSel"></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="lab" id="lab-keys">Transpose to</span>
+          <div class="keys" id="keys" role="group" aria-labelledby="lab-keys"></div>
+          <div class="legend"><span><i></i>Original key</span><span><b></b>Sounding key</span></div>
+        </div>
+
+        <div class="ctl-row">
+          <fieldset class="seg">
+            <legend class="lab">Note names</legend>
+            <div class="opts">
+              <label><input type="radio" name="spell" value="auto" checked><span>Auto</span></label>
+              <label><input type="radio" name="spell" value="sharp"><span>Sharps &sharp;</span></label>
+              <label><input type="radio" name="spell" value="flat"><span>Flats &flat;</span></label>
+            </div>
+          </fieldset>
+          <label class="chk"><input type="checkbox" id="showCh" checked> Show chords</label>
+          <div class="field">
+            <span class="lab" id="lab-size">Text size</span>
+            <div class="stepper" role="group" aria-labelledby="lab-size">
+              <button type="button" class="btn small" id="smaller" aria-label="Smaller text">A&minus;</button>
+              <button type="button" class="btn small" id="larger" aria-label="Larger text">A+</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="summary" id="summary"></p>
+        <div class="tip" id="capoTip" hidden></div>
+      </div>
+
+      <div class="chips-wrap">
+        <span class="lab">Chords in this song</span>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="sheet-head">
+        <h3 id="songTitle"></h3>
+        <button type="button" class="btn primary" id="copy">Copy text</button>
+        <span id="copyMsg" role="status"></span>
+      </div>
+      <div class="sheet" id="sheet" tabindex="0" aria-label="Transposed chord sheet"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+var Core = (function () {
+  'use strict';
+  var SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  var FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+  var KEYS_MAJ = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  var KEYS_MIN = ['Cm', 'C#m', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'Bbm', 'Bm'];
+  var FLAT_MAJ = [5, 10, 3, 8, 1];
+  var FLAT_MIN = [2, 7, 0, 5, 10, 3];
+  var BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  var REST_RE = /^(?:maj|min|dim|aug|sus|add|m|M|\+|°|ø|-)?(?:\d{1,2})?(?:(?:sus|add|maj|b|#|\+|-|aug|dim)\d{0,2})*(?:\([^)]*\))?$/;
+  var SKIP_RE = /^(?:\||\|\||-|–|%|\/|x\d+|\(x\d+\)|N\.?C\.?)$/i;
+  var SECTION_RE = /^(?:verse|chorus|pre-?chorus|bridge|intro|outro|interlude|solo|refrain|tag|instrumental|coda|ending)(?:\s*\d+)?\s*:?$/i;
+  var OPEN = {};
+  ['0|', '2|', '4|', '7|', '9|', '9|m', '4|m', '2|m', '9|7', '2|7', '4|7', '7|7', '11|7', '0|7',
+   '0|maj7', '2|maj7', '5|maj7', '9|maj7'].forEach(function (k) { OPEN[k] = 1; });
+
+  function mod12(n) { return ((n % 12) + 12) % 12; }
+  function norm(s) { return ((((s + 5) % 12) + 12) % 12) - 5; }
+  function pc(n) { return mod12(BASE[n.charAt(0)] + (n.charAt(1) === '#' ? 1 : n.charAt(1) === 'b' ? -1 : 0)); }
+  function nm(i, flats) { return (flats ? FLAT : SHARP)[mod12(i)]; }
+  function keyName(root, minor) { return (minor ? KEYS_MIN : KEYS_MAJ)[mod12(root)]; }
+
+  function parseChord(tok) {
+    var m = /^([A-G][#b]?)([^\/]*)(?:\/([A-G][#b]?))?$/.exec(tok);
+    if (!m || !REST_RE.test(m[2])) return null;
+    return { root: pc(m[1]), rest: m[2], bass: m[3] ? pc(m[3]) : null };
+  }
+  function isMinor(p) { return /^(m(?!aj)|min)/.test(p.rest); }
+  function quality(p) {
+    var r = p.rest;
+    if (/^(m(?!aj)|min)/.test(r)) return 'm';
+    if (/^(maj7|M7)/.test(r)) return 'maj7';
+    if (/^7/.test(r)) return '7';
+    return '';
+  }
+  function tr(tok, shift, flats) {
+    shift = mod12(shift);
+    if (!shift) return tok;
+    var p = parseChord(tok);
+    if (!p) return tok;
+    return nm(p.root + shift, flats) + p.rest + (p.bass !== null ? '/' + nm(p.bass + shift, flats) : '');
+  }
+  function flatsFor(spell, root, minor) {
+    if (spell === 'sharp') return false;
+    if (spell === 'flat') return true;
+    return (minor ? FLAT_MIN : FLAT_MAJ).indexOf(mod12(root)) >= 0;
+  }
+  function isChordLine(line) {
+    var toks = line.trim().split(/\s+/), n = 0, i;
+    for (i = 0; i < toks.length; i++) {
+      if (parseChord(toks[i])) n++;
+      else if (!SKIP_RE.test(toks[i])) return false;
+    }
+    return n > 0;
+  }
+
+  function parse(src) {
+    var out = { title: '', key: null, lines: [] };
+    src.split(/\r?\n/).forEach(function (raw) {
+      var line = raw.replace(/\s+$/, '');
+      if (!line.trim()) { out.lines.push({ k: 'blank' }); return; }
+      var d = /^\s*\{\s*([a-zA-Z_]+)\s*:?\s*(.*?)\s*\}\s*$/.exec(line);
+      if (d) {
+        var name = d[1].toLowerCase(), val = d[2];
+        if (name === 'title' || name === 't') out.title = val;
+        else if (name === 'key') {
+          var kp = parseChord(val);
+          if (kp) out.key = { root: kp.root, minor: isMinor(kp) };
+        } else if (name === 'comment' || name === 'c' || name === 'ci' || name === 'cb') out.lines.push({ k: 'sec', t: val });
+        else if (name === 'start_of_chorus' || name === 'soc') out.lines.push({ k: 'sec', t: 'Chorus' });
+        else if (name === 'start_of_verse' || name === 'sov') out.lines.push({ k: 'sec', t: 'Verse' });
+        else if (name === 'start_of_bridge' || name === 'sob') out.lines.push({ k: 'sec', t: 'Bridge' });
+        return;
+      }
+      if (line.indexOf('[') >= 0) {
+        var re = /\[([^\]]*)\]/g, m, last = 0, lyric = '', chords = [], has = false;
+        while ((m = re.exec(line))) {
+          lyric += line.slice(last, m.index);
+          if (parseChord(m[1].trim())) { chords.push({ pos: lyric.length, c: m[1].trim() }); has = true; }
+          else lyric += m[0];
+          last = re.lastIndex;
+        }
+        lyric += line.slice(last);
+        if (has) { out.lines.push({ k: 'pair', lyric: lyric, chords: chords }); return; }
+        var sm = /^\s*\[([^\]]*)\]\s*$/.exec(line);
+        if (sm) { out.lines.push({ k: 'sec', t: sm[1] }); return; }
+      }
+      if (isChordLine(line)) { out.lines.push({ k: 'chl', t: line }); return; }
+      if (SECTION_RE.test(line.trim())) { out.lines.push({ k: 'sec', t: line.trim().replace(/:$/, '') }); return; }
+      out.lines.push({ k: 'lyr', t: line });
+    });
+    return out;
+  }
+
+  function collect(model) {
+    var toks = [];
+    model.lines.forEach(function (L) {
+      if (L.k === 'pair') L.chords.forEach(function (c) { toks.push(c.c); });
+      else if (L.k === 'chl') L.t.trim().split(/\s+/).forEach(function (t) { if (parseChord(t)) toks.push(t); });
+    });
+    return toks;
+  }
+
+  function detectKey(model) {
+    if (model.key) return model.key;
+    var toks = collect(model);
+    if (!toks.length) return null;
+    var p = parseChord(toks[0]);
+    return { root: p.root, minor: isMinor(p) };
+  }
+
+  function build(model, shift, flats, showChords) {
+    var out = [], used = [], seen = {};
+    function add(tok) {
+      var t = tr(tok, shift, flats);
+      if (!seen[t]) { seen[t] = 1; used.push(t); }
+      return t;
+    }
+    model.lines.forEach(function (L) {
+      if (L.k === 'blank') out.push({ k: 'blank', t: '' });
+      else if (L.k === 'sec') out.push({ k: 'sec', t: L.t });
+      else if (L.k === 'lyr') out.push({ k: 'lyr', t: L.t });
+      else if (L.k === 'pair') {
+        var cl = '';
+        L.chords.forEach(function (c) {
+          var t = add(c.c);
+          var col = Math.max(c.pos, cl.length ? cl.length + 1 : 0);
+          cl += new Array(col - cl.length + 1).join(' ') + t;
+        });
+        if (showChords) out.push({ k: 'chl', t: cl });
+        if (L.lyric.trim()) out.push({ k: 'lyr', t: L.lyric });
+      } else if (L.k === 'chl') {
+        var o = '', op = 0, re = /(\s+)|(\S+)/g, m;
+        while ((m = re.exec(L.t))) {
+          if (m[1]) {
+            var w = m[1].length, ex = o.length - op;
+            o += new Array(Math.max(1, w - ex) + 1).join(' ');
+            op += w;
+          } else {
+            o += parseChord(m[2]) ? add(m[2]) : m[2];
+            op += m[2].length;
+          }
+        }
+        if (showChords) out.push({ k: 'chl', t: o });
+      }
+    });
+    return { lines: out, used: used };
+  }
+
+  function suggestCapo(model, steps) {
+    var toks = collect(model);
+    if (!toks.length) return null;
+    var best = null, c;
+    for (c = 0; c <= 9; c++) {
+      var score = 0;
+      toks.forEach(function (t) {
+        var p = parseChord(t);
+        if (OPEN[mod12(p.root + steps - c) + '|' + quality(p)]) score++;
+      });
+      if (!best || score > best.score) best = { capo: c, score: score, total: toks.length };
+    }
+    return best;
+  }
+
+  return {
+    parse: parse, build: build, detectKey: detectKey, keyName: keyName, tr: tr,
+    parseChord: parseChord, suggestCapo: suggestCapo, flatsFor: flatsFor,
+    collect: collect, mod12: mod12, norm: norm
+  };
+})();
+/*DOM*/
+(function () {
+  'use strict';
+  var SAMPLES = [
+    { name: 'Amazing Grace', text:
+'{title: Amazing Grace}\n{key: G}\n' +
+'[G]Amazing [G7]grace, how [C]sweet the [G]sound,\n' +
+'That [G]saved a [Em]wretch like [D]me.\n' +
+'I [G]once was [G7]lost, but [C]now am [G]found,\n' +
+'Was [G]blind, but [D]now I [G]see.\n\n' +
+"’Twas [G]grace that [G7]taught my [C]heart to [G]fear,\n" +
+'And [G]grace my [Em]fears re[D]lieved;\n' +
+'How [G]precious [G7]did that [C]grace ap[G]pear\n' +
+'The [G]hour I [D]first be[G]lieved.\n' },
+    { name: 'Silent Night', text:
+'{title: Silent Night}\n{key: C}\n' +
+'[C]Silent night, holy night,\n' +
+'All is calm, all is bright,\n' +
+'Round yon [F]virgin [C]mother and child,\n' +
+'Holy [F]infant so [C]tender and mild,\n' +
+'Sleep in [G]heavenly [C]peace,\n' +
+'Sleep in [G]heavenly [C]peace.\n' },
+    { name: 'Auld Lang Syne', text:
+'{title: Auld Lang Syne}\n{key: G}\n' +
+'Should [G]auld ac[D]quaintance be for[G]got,\n' +
+'And [G]never brought to [Em]mind?\n' +
+'Should [G]auld ac[D]quaintance be for[G]got,\n' +
+'And [G]auld lang [D]syne[G]?\n\n' +
+'{c: Chorus}\n' +
+'For [G]auld lang [Em]syne, my [D]dear,\n' +
+'For [G]auld lang [D]syne,\n' +
+"We'll [G]tak a cup o' [C]kindness yet,\n" +
+'For [G]auld lang [D]syne[G].\n' },
+    { name: 'Jingle Bells', text:
+'{title: Jingle Bells}\n{key: G}\n' +
+'[G]Dashing through the snow, in a one-horse [C]open [G]sleigh,\n' +
+"O'er the [G]fields we go, laughing [D]all the [G]way.\n" +
+'Bells on [G]bobtail ring, making [C]spirits [G]bright,\n' +
+'What fun it [C]is to ride and [D]sing a sleighing [G]song tonight!\n\n' +
+'{c: Chorus}\n' +
+'[G]Jingle bells, jingle bells, jingle all the way,\n' +
+'Oh what [C]fun it is to [G]ride in a one-horse [D]open [G]sleigh, hey!\n' },
+    { name: 'When the Saints (chords above)', text:
+'When the Saints Go Marching In\n\n' +
+'C\n' +
+'Oh when the saints go marching in,\n' +
+'                         G7\n' +
+'Oh when the saints go marching in,\n' +
+'    C                F      C\n' +
+'Oh Lord I want to be in that number,\n' +
+'        G7          C\n' +
+'When the saints go marching in.\n' }
+  ];
+
+  var state = { steps: 2, capo: 0, spell: 'auto', orig: 'auto', chords: true, size: 15 };
+  var $ = function (id) { return document.getElementById(id); };
+  var ta = $('src'), sheet = $('sheet');
+  var lastText = '';
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function signed(n) { return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0'; }
+  function unique(a) { var s = {}; return a.filter(function (x) { return s[x] ? false : (s[x] = 1); }); }
+
+  /* static controls */
+  var samplesEl = $('samples');
+  SAMPLES.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn small'; b.textContent = s.name;
+    b.addEventListener('click', function () { loadText(s.text); });
+    samplesEl.appendChild(b);
+  });
+  var clr = document.createElement('button');
+  clr.type = 'button'; clr.className = 'btn small'; clr.textContent = 'Clear';
+  clr.addEventListener('click', function () { loadText(''); ta.focus(); });
+  samplesEl.appendChild(clr);
+
+  var origSel = $('origSel');
+  (function () {
+    var o = document.createElement('option'); o.value = 'auto'; o.textContent = 'Auto-detect'; origSel.appendChild(o);
+    var g1 = document.createElement('optgroup'); g1.label = 'Major';
+    var g2 = document.createElement('optgroup'); g2.label = 'Minor';
+    for (var i = 0; i < 12; i++) {
+      var a = document.createElement('option'); a.value = i + ':M'; a.textContent = Core.keyName(i, false); g1.appendChild(a);
+      var b = document.createElement('option'); b.value = i + ':m'; b.textContent = Core.keyName(i, true); g2.appendChild(b);
+    }
+    origSel.appendChild(g1); origSel.appendChild(g2);
+  })();
+  var capoSel = $('capoSel');
+  for (var c = 0; c <= 9; c++) {
+    var co = document.createElement('option'); co.value = c; co.textContent = c ? 'Fret ' + c : 'No capo'; capoSel.appendChild(co);
+  }
+
+  function loadText(t) {
+    ta.value = t; state.steps = t === SAMPLES[0].text ? 2 : 0; state.capo = 0; state.orig = 'auto';
+    render();
+  }
+
+  function render() {
+    var model = Core.parse(ta.value);
+    var det = Core.detectKey(model);
+    var o = det;
+    if (state.orig !== 'auto') { var sp = state.orig.split(':'); o = { root: +sp[0], minor: sp[1] === 'm' }; }
+    var base = o || { root: 0, minor: false };
+    var shift = Core.mod12(state.steps - state.capo);
+    var flats = Core.flatsFor(state.spell, base.root + shift, base.minor);
+    var res = Core.build(model, shift, flats, state.chords);
+    var hasChords = Core.collect(model).length > 0;
+
+    /* controls reflect state */
+    $('stepOut').textContent = signed(state.steps);
+    origSel.options[0].textContent = 'Auto-detect' + (det ? ' (' + Core.keyName(det.root, det.minor) + ')' : '');
+    origSel.value = state.orig;
+    capoSel.value = String(state.capo);
+    $('showCh').checked = state.chords;
+    var radios = document.getElementsByName('spell');
+    for (var r = 0; r < radios.length; r++) radios[r].checked = radios[r].value === state.spell;
+
+    /* key strip */
+    var keysEl = $('keys'); keysEl.innerHTML = '';
+    var target = Core.mod12(base.root + state.steps);
+    for (var k = 0; k < 12; k++) {
+      (function (k) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'key' + (k === Core.mod12(base.root) && hasChords ? ' is-orig' : '');
+        b.textContent = Core.keyName(k, base.minor);
+        b.setAttribute('aria-pressed', k === target ? 'true' : 'false');
+        b.addEventListener('click', function () { state.steps = Core.norm(k - base.root); render(); });
+        keysEl.appendChild(b);
+      })(k);
+    }
+
+    /* summary and capo tip */
+    var sum = $('summary'), tip = $('capoTip');
+    if (!hasChords) {
+      sum.textContent = 'No chords found yet. Put chords above the lyrics or in [brackets].';
+      tip.hidden = true;
+    } else {
+      var txt = 'Original key ' + Core.keyName(base.root, base.minor) + ' → ' + Core.keyName(target, base.minor) + ' (' + signed(state.steps) + ')';
+      if (state.capo) txt += '. Play ' + Core.keyName(base.root + state.steps - state.capo, base.minor) + ' shapes with the capo on fret ' + state.capo;
+      sum.textContent = txt + '.';
+      var sg = Core.suggestCapo(model, state.steps);
+      var pct = Math.round(100 * sg.score / sg.total);
+      tip.innerHTML = '';
+      var p = document.createElement('p');
+      if (sg.capo === state.capo) {
+        p.textContent = 'Easiest shapes: ' + (state.capo ? 'capo on fret ' + state.capo : 'no capo') + ' (' + pct + '% open chords).';
+        tip.appendChild(p);
+      } else {
+        var sh = unique(Core.collect(model).map(function (t) {
+          var sk = Core.mod12(base.root + state.steps - sg.capo);
+          return Core.tr(t, state.steps - sg.capo, Core.flatsFor(state.spell, sk, base.minor));
+        })).slice(0, 8).join('  ');
+        p.textContent = 'Easier to play with ' + (sg.capo ? 'a capo on fret ' + sg.capo : 'no capo') + ' (' + pct + '% open chords): ' + sh;
+        var ap = document.createElement('button');
+        ap.type = 'button'; ap.className = 'btn small'; ap.textContent = sg.capo ? 'Use capo ' + sg.capo : 'Remove capo';
+        ap.addEventListener('click', function () { state.capo = sg.capo; render(); });
+        tip.appendChild(p); tip.appendChild(ap);
+      }
+      tip.hidden = false;
+    }
+
+    /* chips */
+    var chips = $('chips'); chips.innerHTML = '';
+    if (res.used.length) {
+      res.used.slice(0, 32).forEach(function (t) {
+        var s = document.createElement('span'); s.className = 'chip'; s.textContent = t; chips.appendChild(s);
+      });
+    } else {
+      var e = document.createElement('span'); e.className = 'empty'; e.textContent = 'None yet'; chips.appendChild(e);
+    }
+
+    /* sheet */
+    $('songTitle').textContent = model.title || 'Untitled sheet';
+    sheet.style.setProperty('--sheet-size', state.size + 'px');
+    sheet.innerHTML = res.lines.map(function (l) {
+      var cls = l.k === 'chl' ? 'ch' : l.k === 'sec' ? 'sec' : l.k === 'blank' ? 'blank' : '';
+      return '<div class="ln ' + cls + '">' + (l.t ? esc(l.t) : '') + '</div>';
+    }).join('');
+    lastText = (model.title ? model.title + '\n\n' : '') + res.lines.map(function (l) { return l.t; }).join('\n');
+
+    try { localStorage.setItem('chordshift:text', ta.value); } catch (err) { /* storage unavailable */ }
+  }
+
+  /* events */
+  ta.addEventListener('input', render);
+  $('up').addEventListener('click', function () { state.steps = Core.norm(state.steps + 1); render(); });
+  $('down').addEventListener('click', function () { state.steps = Core.norm(state.steps - 1); render(); });
+  $('reset').addEventListener('click', function () { state.steps = 0; state.capo = 0; render(); });
+  origSel.addEventListener('change', function () { state.orig = origSel.value; state.steps = 0; render(); });
+  capoSel.addEventListener('change', function () { state.capo = +capoSel.value; render(); });
+  $('showCh').addEventListener('change', function (e) { state.chords = e.target.checked; render(); });
+  Array.prototype.forEach.call(document.getElementsByName('spell'), function (r) {
+    r.addEventListener('change', function () { if (r.checked) { state.spell = r.value; render(); } });
+  });
+  $('smaller').addEventListener('click', function () { state.size = Math.max(11, state.size - 1); render(); });
+  $('larger').addEventListener('click', function () { state.size = Math.min(26, state.size + 1); render(); });
+
+  function say(m) {
+    var el = $('copyMsg'); el.textContent = m;
+    setTimeout(function () { if (el.textContent === m) el.textContent = ''; }, 2200);
+  }
+  function fallbackCopy() {
+    var t = document.createElement('textarea');
+    t.value = lastText; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    document.body.removeChild(t);
+    say(ok ? 'Copied' : 'Select the sheet and copy it');
+  }
+  $('copy').addEventListener('click', function () {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(lastText).then(function () { say('Copied'); }, fallbackCopy);
+    } else fallbackCopy();
+  });
+
+  /* start with a saved draft, otherwise the first sample */
+  var saved = '';
+  try { saved = localStorage.getItem('chordshift:text') || ''; } catch (err) { saved = ''; }
+  if (saved.trim()) { ta.value = saved; state.steps = 0; render(); }
+  else { ta.value = SAMPLES[0].text; render(); }
+})();
+</script>
+
+</html>

@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swara Sketch</title>
+<meta name="description" content="Free Sinhala lyrics to melody generator. Type lyrics, get a playable melody for every line.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Sinhala:wght@400;500;600&display=swap">
+<style>
+/* Layout: controls band on top; Sinhala lyrics on the left; one piano-roll row per lyric line on the right (degree ladder, notes, sargam lane, lyric lane). */
+:root {
+  --bg: #EDEFF6;
+  --surface: #FAFBFE;
+  --ink: #1B2038;
+  --muted: #5A6283;
+  --line: #CCD1E3;
+  --accent: #B4510A;
+  --accent-ink: #FFFFFF;
+  --indigo: #2F3F9E;
+  --font-display: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  --font-sinhala: 'Noto Sans Sinhala', 'Iskoola Pota', 'Nirmala UI', 'Sinhala MN', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11142B;
+    --surface: #1A1E3B;
+    --ink: #E9EBF6;
+    --muted: #9AA1C6;
+    --line: #333862;
+    --accent: #FFB454;
+    --accent-ink: #2A1500;
+    --indigo: #9DAEFF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11142B;
+  --surface: #1A1E3B;
+  --ink: #E9EBF6;
+  --muted: #9AA1C6;
+  --line: #333862;
+  --accent: #FFB454;
+  --accent-ink: #2A1500;
+  --indigo: #9DAEFF;
+  color-scheme: dark;
+}
+
+html { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-block: 22px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin: 0 0 6px;
+}
+.top p { margin: 0 0 18px; color: var(--muted); max-width: 66ch; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 18px; margin: 0 0 12px; }
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+  min-width: 0;
+}
+.lab {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding: 0;
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* controls */
+.controls { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+.crow { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+.field { min-width: 0; }
+.btn {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 12px;
+  cursor: pointer;
+  min-height: 36px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; min-width: 96px; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { min-height: 30px; padding: 3px 10px; font-size: 13px; }
+:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+select, input[type="number"] {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 7px 8px;
+  min-height: 36px;
+  max-width: 100%;
+}
+input[type="number"] { width: 92px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+input[type="range"] { width: 150px; accent-color: var(--accent); vertical-align: middle; }
+.bpm { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.bpm output { font-family: var(--font-mono); min-width: 7ch; font-variant-numeric: tabular-nums; }
+.chk { display: flex; align-items: center; gap: 8px; min-height: 36px; cursor: pointer; }
+.chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+fieldset.seg { border: 0; margin: 0; padding: 0; min-width: 0; }
+.seg .opts { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg label {
+  padding: 7px 12px; font-size: 14px; cursor: pointer; min-height: 36px; display: flex; align-items: center;
+  border-right: 1px solid var(--line);
+}
+.seg label:last-child { border-right: 0; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg label:has(input:checked) { background: var(--indigo); color: var(--bg); font-weight: 500; }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.method { margin: 0; font-size: 13px; color: var(--muted); max-width: 90ch; }
+
+/* panes */
+.panes { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .panes { grid-template-columns: minmax(0, 1fr); } }
+textarea {
+  width: 100%;
+  min-height: 300px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: var(--font-sinhala);
+  font-size: 17px;
+  line-height: 1.8;
+}
+.note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.status { margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+
+/* piano-roll rows */
+.row { border-top: 1px solid var(--line); padding: 10px 0 12px; }
+.row.new-stanza { margin-top: 10px; }
+.row:first-of-type { border-top: 0; padding-top: 0; }
+.rowhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+.rowhead .rn { font-family: var(--font-display); font-weight: 600; }
+.rowhead .meta { font-size: 13px; color: var(--muted); }
+.rowhead .sp { flex: 1 1 0; }
+.scroller { overflow-x: auto; }
+svg.roll { display: block; }
+.gl { stroke: var(--line); stroke-width: 1; }
+.gl.tonic { stroke: var(--indigo); opacity: 0.55; }
+.bar { stroke: var(--line); stroke-dasharray: 3 4; }
+.note-r { fill: var(--accent); cursor: pointer; }
+.note-r.on { fill: var(--indigo); }
+.gut { font: 9.5px var(--font-mono); fill: var(--muted); }
+.nt { font: 10.5px var(--font-mono); fill: var(--muted); }
+.ly { font-family: var(--font-sinhala); font-size: 15px; fill: var(--ink); }
+.empty { color: var(--muted); padding: 24px 0; }
+.copybar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+#copyMsg { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .btn { transition: border-color 0.12s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Swara Sketch</h1>
+    <p>Type Sinhala lyrics and get a melody for every line. Syllable length sets note length, line endings set the cadence, and you can hear it right away.</p>
+  </header>
+
+  <section class="panel controls" aria-label="Melody settings">
+    <div class="crow">
+      <button type="button" class="btn primary" id="play">Play</button>
+      <button type="button" class="btn" id="newMelody">New melody</button>
+      <div class="field">
+        <label class="lab" for="seed">Seed</label>
+        <input type="number" id="seed" min="1" max="999999" step="1" value="20481">
+      </div>
+      <div class="field">
+        <span class="lab" id="lab-bpm">Tempo</span>
+        <div class="bpm"><input type="range" id="bpm" min="56" max="160" value="88" aria-labelledby="lab-bpm"><output id="bpmOut" for="bpm">88 BPM</output></div>
+      </div>
+    </div>
+    <div class="crow">
+      <div class="field"><label class="lab" for="keySel">Key</label><select id="keySel"></select></div>
+      <div class="field"><label class="lab" for="modeSel">Scale</label><select id="modeSel"></select></div>
+      <div class="field"><label class="lab" for="meterSel">Beat</label>
+        <select id="meterSel"><option value="8">4/4</option><option value="6">3/4</option><option value="4">2/4</option></select></div>
+      <div class="field"><label class="lab" for="instSel">Sound</label>
+        <select id="instSel"><option value="flute">Flute</option><option value="harmonium">Harmonium</option><option value="piano">Piano</option></select></div>
+      <div class="field"><label class="lab" for="notSel">Note names</label>
+        <select id="notSel"><option value="sargam">Sargam</option><option value="western">Western</option><option value="off">Hidden</option></select></div>
+    </div>
+    <div class="crow">
+      <fieldset class="seg">
+        <legend class="lab">Melody range</legend>
+        <div class="opts">
+          <label><input type="radio" name="range" value="0"><span>Calm</span></label>
+          <label><input type="radio" name="range" value="1" checked><span>Balanced</span></label>
+          <label><input type="radio" name="range" value="2"><span>Expressive</span></label>
+        </div>
+      </fieldset>
+      <label class="chk"><input type="checkbox" id="droneCk" checked> Drone (Sa and Pa)</label>
+      <label class="chk"><input type="checkbox" id="reuseCk" checked> Echo earlier lines</label>
+    </div>
+    <p class="method">Melodies are built from rules, not a trained model. Long vowels and closed syllables get longer notes, the first syllable of each word gets a little more weight, commas shorten into breaths, and the last line of a verse lands on Sa.</p>
+  </section>
+
+  <main class="panes">
+    <section class="panel" aria-labelledby="ly-h">
+      <h2 id="ly-h">Sinhala lyrics</h2>
+      <label class="sr" for="lyrics">Sinhala lyrics, one line per row</label>
+      <textarea id="lyrics" spellcheck="false" lang="si" autocomplete="off"></textarea>
+      <p class="note">One lyric per line. Leave a blank line between verses. The sample lines are original, written for this demo. Your lyrics stay in your browser.</p>
+    </section>
+    <section class="panel" aria-labelledby="mel-h">
+      <h2 id="mel-h">Melody</h2>
+      <p class="status" id="status"></p>
+      <div id="rows"></div>
+      <div class="copybar">
+        <button type="button" class="btn" id="copy">Copy notes as text</button>
+        <span id="copyMsg" role="status"></span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+var Core = (function () {
+  'use strict';
+  var MODES = [
+    { id: 'major', name: 'Major (Bilawal)', s: [0, 2, 4, 5, 7, 9, 11] },
+    { id: 'minor', name: 'Natural minor (Asavari)', s: [0, 2, 3, 5, 7, 8, 10] },
+    { id: 'pmaj', name: 'Pentatonic major (Bhoopali)', s: [0, 2, 4, 7, 9] },
+    { id: 'pmin', name: 'Pentatonic minor', s: [0, 3, 5, 7, 10] },
+    { id: 'yaman', name: 'Yaman (Kalyan)', s: [0, 2, 4, 6, 7, 9, 11] },
+    { id: 'bhairavi', name: 'Bhairavi', s: [0, 1, 3, 5, 7, 8, 10] },
+    { id: 'kafi', name: 'Kafi', s: [0, 2, 3, 5, 7, 9, 10] },
+    { id: 'khamaj', name: 'Khamaj', s: [0, 2, 4, 5, 7, 9, 10] }
+  ];
+  var KEYS = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+  var SARGAM = ['Sa', 're', 'Re', 'ga', 'Ga', 'Ma', 'Ma′', 'Pa', 'dha', 'Dha', 'ni', 'Ni'];
+  var WEST = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+  var RANGES = [{ lo: -2, hi: 0, rise: 2 }, { lo: -3, hi: 2, rise: 3 }, { lo: -4, hi: 4, rise: 5 }];
+
+  function mod(n, m) { return ((n % m) + m) % m; }
+  function rngFrom(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function mix(a, b, c) { return (Math.imul(a, 1000003) + Math.imul(b + 1, 7919) + Math.imul(c + 1, 104729)) >>> 0; }
+
+  /* ---------- Sinhala syllables ---------- */
+  function isC(c) { return c >= 'ක' && c <= 'ෆ'; }
+  function isV(c) { return c >= 'අ' && c <= 'ඖ'; }
+  function isS(c) { return (c >= 'ා' && c <= 'ෟ') || c === 'ෲ' || c === 'ෳ'; }
+  var LONG_V = 'ආඈඊඌඎඐඒඓඕඖ';
+  var LONG_S = 'ාෑීූේෛෝෞෲෳ';
+
+  function sinhalaSyllables(word) {
+    var ch = Array.from(word), out = [], i = 0;
+    while (i < ch.length) {
+      var c = ch[i];
+      if (!isC(c) && !isV(c)) { i++; continue; }
+      var s = c, long = false, hasSign = false, signs = '';
+      i++;
+      if (isV(c) && LONG_V.indexOf(c) >= 0) long = true;
+      if (isC(c)) {
+        while (ch[i] === '්' && (isC(ch[i + 1]) || (ch[i + 1] === '‍' && isC(ch[i + 2])))) {
+          s += ch[i]; i++;
+          if (ch[i] === '‍') { s += ch[i]; i++; }
+          s += ch[i]; i++;
+        }
+      }
+      while (i < ch.length && isS(ch[i])) { s += ch[i]; signs += ch[i]; hasSign = true; i++; }
+      if (hasSign) {
+        var composedShortO = signs.indexOf('ෙ') >= 0 && signs.indexOf('ා') >= 0;
+        if (composedShortO) {
+          if (ch[i] === '්') { s += ch[i]; i++; long = true; }
+        } else {
+          for (var q = 0; q < signs.length; q++) if (LONG_S.indexOf(signs.charAt(q)) >= 0) long = true;
+        }
+      }
+      if (ch[i] === 'ං' || ch[i] === 'ඃ') { s += ch[i]; i++; long = true; }
+      if (isC(c) && !hasSign && ch[i] === '්') {
+        s += ch[i]; i++;
+        if (out.length) { out[out.length - 1].text += s; out[out.length - 1].long = true; }
+        else out.push({ text: s, long: true });
+        continue;
+      }
+      out.push({ text: s, long: long });
+    }
+    return out;
+  }
+  function latinSyllables(word) {
+    var m = word.match(/[^aeiou]*[aeiou]+/gi);
+    if (!m) return [{ text: word, long: false }];
+    var used = m.join('').length;
+    if (used < word.length) m[m.length - 1] += word.slice(used);
+    return m.map(function (t) { return { text: t, long: /[aeiou]{2}/i.test(t) || /[^aeiou\s][^aeiou\s]$/i.test(t) }; });
+  }
+  function wordSyllables(w) {
+    var sy = /[඀-෿]/.test(w) ? sinhalaSyllables(w) : (/[A-Za-z]/.test(w) ? latinSyllables(w) : []);
+    sy.forEach(function (s, i) { s.wordStart = i === 0; });
+    return sy;
+  }
+  function phraseSyllables(text) {
+    var out = [];
+    text.split(/\s+/).forEach(function (w) { if (w) out = out.concat(wordSyllables(w)); });
+    return out;
+  }
+  function splitLong(syl) {
+    if (syl.length <= 12) return [syl];
+    var starts = [], best = -1, bestDist = 1e9, half = syl.length / 2, i;
+    for (i = 1; i < syl.length; i++) if (syl[i].wordStart) starts.push(i);
+    starts.forEach(function (p) { var d = Math.abs(p - half); if (d < bestDist) { bestDist = d; best = p; } });
+    if (best < 0) return [syl];
+    return [syl.slice(0, best), syl.slice(best)];
+  }
+
+  function parseLyrics(text) {
+    var stanzas = [], cur = null;
+    text.split(/\r?\n/).forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) { cur = null; return; }
+      var phrases = [];
+      line.split(/[,;:.!?…।]+/).forEach(function (p) {
+        var syl = phraseSyllables(p);
+        if (syl.length) splitLong(syl).forEach(function (x) { phrases.push(x); });
+      });
+      if (!phrases.length) return;
+      if (!cur) { cur = []; stanzas.push(cur); }
+      var count = 0, sig = [];
+      phrases.forEach(function (p) { count += p.length; sig.push(p.length); });
+      cur.push({ raw: line, key: line.replace(/[\s,;:.!?…।]+/g, ''), phrases: phrases, count: count, sig: sig.join('-') });
+    });
+    return stanzas;
+  }
+
+  /* ---------- scale helpers ---------- */
+  function modeInfo(modeId) {
+    var m = MODES.filter(function (x) { return x.id === modeId; })[0] || MODES[0];
+    var s = m.s, n = s.length;
+    function idx(list, fallback) {
+      for (var a = 0; a < list.length; a++) { var f = s.indexOf(list[a]); if (f >= 0) return f; }
+      return fallback;
+    }
+    var stable = s.map(function (x) { return x === 0 || x === 3 || x === 4 || x === 7; });
+    return { id: m.id, name: m.name, s: s, n: n, i3: idx([4, 3], 2 % n), i5: idx([7], Math.min(n - 1, 4)), i2: idx([2, 1], 1), stable: stable };
+  }
+  function tonicMidi(key) { return 60 + key - (key > 6 ? 12 : 0); }
+  function midiOf(d, mi, key) { return tonicMidi(key) + 12 * Math.floor(d / mi.n) + mi.s[mod(d, mi.n)]; }
+  function sargamOf(d, mi) {
+    var base = SARGAM[mi.s[mod(d, mi.n)]], oct = Math.floor(d / mi.n);
+    if (oct < 0) return base + '̣';
+    if (oct > 0) return base + '̇';
+    return base;
+  }
+  function westernOf(midi) { return WEST[mod(midi, 12)] + (Math.floor(midi / 12) - 1); }
+
+  /* ---------- melody generation ---------- */
+  function nearStable(d, o) {
+    var offs = [0, 1, -1, 2, -2], i;
+    for (i = 0; i < offs.length; i++) if (o.mi.stable[mod(d + offs[i], o.mi.n)]) return d + offs[i];
+    return d;
+  }
+  function target(kind, o) {
+    var r = o.rng, mi = o.mi, c;
+    if (kind === 'full') return 0;
+    c = kind === 'half' ? [mi.i5, mi.i5, mi.i3, mi.i2] : [mi.i3, mi.i2, mi.i5];
+    return c[Math.floor(r() * c.length)];
+  }
+  function contour(n, startD, endD, longs, o) {
+    var rng = o.rng, lo = o.lo, hi = o.hi, nSc = o.mi.n, out = [], j, k;
+    if (n === 1) return [endD];
+    var peakD = Math.min(hi, Math.max(startD, endD) + o.rise + (rng() < 0.5 ? 0 : 1));
+    var pp = Math.max(1, Math.round((0.45 + rng() * 0.35) * (n - 1)));
+    var prev = startD, leapBack = 0;
+    for (j = 0; j < n; j++) {
+      var t = j <= pp ? startD + (peakD - startD) * (j / pp) : peakD + (endD - peakD) * ((j - pp) / Math.max(1, n - 1 - pp));
+      var d = Math.round(t + (rng() - 0.5) * 1.6);
+      if (j === 0) d = startD;
+      else {
+        if (d === prev && !leapBack && rng() < 0.5) d = prev + (t > prev ? 1 : (t < prev ? -1 : (rng() < 0.5 ? 1 : -1)));
+        var diff = d - prev;
+        if (leapBack) { d = prev + leapBack; leapBack = 0; }
+        else if (Math.abs(diff) > 2) {
+          if (Math.abs(diff) <= 4 && rng() < 0.18) leapBack = -(diff > 0 ? 1 : -1);
+          else d = prev + 2 * (diff > 0 ? 1 : -1);
+        } else if (diff === 0 && out.length > 1 && out[out.length - 1] === out[out.length - 2]) d = prev + (rng() < 0.5 ? 1 : -1);
+      }
+      if (longs[j] && j > 0 && !o.mi.stable[mod(d, nSc)] && rng() < 0.6) d = nearStable(d, o);
+      d = Math.max(lo, Math.min(hi, d));
+      out.push(d); prev = d;
+    }
+    out[n - 1] = endD;
+    for (k = n - 2; k >= 0; k--) {
+      var df = out[k] - out[k + 1];
+      if (Math.abs(df) > 3) out[k] = out[k + 1] + 3 * (df > 0 ? 1 : -1);
+    }
+    return out;
+  }
+
+  /* settings: {key, mode, barUnits, range, seed, reuse}. */
+  function generate(stanzas, st, variants) {
+    var mi = modeInfo(st.mode), rg = RANGES[st.range];
+    var lo = rg.lo, hi = mi.n + rg.hi;
+    var lines = [], seen = {}, offset = 0, gi = 0;
+    stanzas.forEach(function (sz, si) {
+      var made = [];
+      sz.forEach(function (ln, li) {
+        var variant = (variants && variants[gi]) || 0;
+        var kind = li === sz.length - 1 ? 'full' : (li % 2 === 0 ? 'half' : 'mid');
+        var res;
+        if (seen[ln.key] && !variant) {
+          res = JSON.parse(JSON.stringify(seen[ln.key]));
+          res.reused = true;
+        } else {
+          var copy = null;
+          if (st.reuse && li >= 2 && made[li - 2] && sz[li - 2].sig === ln.sig && !variant) copy = made[li - 2].ds;
+          res = genLine(ln, { rng: rngFrom(mix(st.seed, gi, variant)), mi: mi, lo: lo, hi: hi, rise: rg.rise, kind: kind, barUnits: st.barUnits, copy: copy });
+        }
+        res.text = ln.raw; res.stanza = si; res.index = li; res.gi = gi; res.kind = kind; res.offset = offset;
+        made.push(res);
+        if (!seen[ln.key]) seen[ln.key] = res;
+        lines.push(res);
+        offset += res.units + (li === sz.length - 1 ? st.barUnits : 0);
+        gi++;
+      });
+    });
+    return { lines: lines, total: offset, mi: mi, lo: lo, hi: hi };
+  }
+
+  function genLine(ln, o) {
+    var mi = o.mi, phr = ln.phrases, ds = [], longsAll = [], sylAll = [], pi, j;
+    var starts = [0, mi.i3, mi.i5, 0];
+    var prevEnd = null;
+    phr.forEach(function (p, idx) {
+      var last = idx === phr.length - 1;
+      var endD = target(last ? o.kind : 'mid', o);
+      var startD;
+      if (prevEnd === null) startD = starts[Math.floor(o.rng() * starts.length)];
+      else startD = nearStable(prevEnd + [-1, 0, 1, 2][Math.floor(o.rng() * 4)], o);
+      var longs = p.map(function (s) { return s.long; });
+      var part = o.copy ? null : contour(p.length, startD, endD, longs, o);
+      if (part) ds = ds.concat(part);
+      prevEnd = endD;
+      p.forEach(function (s) { sylAll.push(s); longsAll.push(s.long); });
+    });
+    if (o.copy && o.copy.length === sylAll.length) {
+      ds = o.copy.slice();
+      var endT = target(o.kind, o), n = ds.length;
+      ds[n - 1] = endT;
+      if (n > 1 && Math.abs(ds[n - 2] - endT) > 2) ds[n - 2] = endT + (ds[n - 2] > endT ? 1 : -1);
+    } else if (o.copy) {
+      ds = []; prevEnd = null;
+      phr.forEach(function (p, idx) {
+        var last = idx === phr.length - 1, endD = target(last ? o.kind : 'mid', o);
+        var startD = prevEnd === null ? 0 : prevEnd;
+        ds = ds.concat(contour(p.length, startD, endD, p.map(function (s) { return s.long; }), o));
+        prevEnd = endD;
+      });
+    }
+    var notes = [], t = 0, si = 0;
+    phr.forEach(function (p, idx) {
+      p.forEach(function (s, jj) {
+        var u = s.long ? 2 : 1;
+        if (jj === p.length - 1) u = Math.max(2, u + 1);
+        var vel = t % o.barUnits === 0 ? 1 : (s.wordStart ? 0.85 : 0.68);
+        notes.push({ d: ds[si], start: t, dur: u, vel: vel, text: s.text, midiPending: true });
+        t += u; si++;
+      });
+      if (idx < phr.length - 1) t += 1;
+    });
+    var pad = mod(o.barUnits - mod(t, o.barUnits), o.barUnits);
+    var ext = Math.min(pad, 4);
+    if (notes.length) { notes[notes.length - 1].dur += ext; notes[notes.length - 1].vel = Math.max(notes[notes.length - 1].vel, 0.8); }
+    t += pad;
+    return { notes: notes, units: t, ds: ds, count: ln.count };
+  }
+
+  return {
+    MODES: MODES, KEYS: KEYS, RANGES: RANGES, parseLyrics: parseLyrics, generate: generate, modeInfo: modeInfo,
+    midiOf: midiOf, sargamOf: sargamOf, westernOf: westernOf, sinhalaSyllables: sinhalaSyllables, mod: mod
+  };
+})();
+/*DOM*/
+(function () {
+  'use strict';
+  var SAMPLE =
+'සඳ එළියේ රෑ නිහඬයි\n' +
+'මල් සුවඳින් හදවත පිරෙයි\n' +
+'ඔබේ සිහිනය මා ළඟයි\n' +
+'ගඟ දිගේ ගීයක් ගලයි\n';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { key: 0, mode: 'major', barUnits: 8, range: 1, bpm: 88, inst: 'flute', notation: 'sargam', drone: true, reuse: true, seed: 20481, variants: {} };
+  var model = null, noteEls = [], rowEls = [];
+  var U = 30, G = 46, ROWH = 11;
+  var ta = $('lyrics'), rowsEl = $('rows');
+
+  /* ---------- setup controls ---------- */
+  Core.KEYS.forEach(function (k, i) { var o = document.createElement('option'); o.value = i; o.textContent = k; $('keySel').appendChild(o); });
+  Core.MODES.forEach(function (m) { var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; $('modeSel').appendChild(o); });
+  $('keySel').value = '0'; $('modeSel').value = 'major';
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function label(d, midi) {
+    if (state.notation === 'off') return '';
+    return state.notation === 'western' ? Core.westernOf(midi) : Core.sargamOf(d, model.mi);
+  }
+
+  /* ---------- build and draw ---------- */
+  function build() {
+    var stanzas = Core.parseLyrics(ta.value);
+    model = Core.generate(stanzas, { key: state.key, mode: state.mode, barUnits: state.barUnits, range: state.range, seed: state.seed, reuse: state.reuse }, state.variants);
+    model.lines.forEach(function (L) {
+      L.notes.forEach(function (n) { n.midi = Core.midiOf(n.d, model.mi, state.key); });
+    });
+  }
+
+  function draw() {
+    var html = '', total = model.lines.length, syl = 0;
+    if (!total) {
+      rowsEl.innerHTML = '<p class="empty">Type or paste Sinhala lyrics on the left. Each line becomes a melodic phrase.</p>';
+      $('status').textContent = '';
+      noteEls = []; rowEls = [];
+      return;
+    }
+    model.lines.forEach(function (L, li) {
+      syl += L.count;
+      var rows = model.hi - model.lo + 1, ladderH = rows * ROWH, top = 6;
+      var W = G + 8 + L.units * U + 12, H = top + ladderH + 48, d, b;
+      var svg = '<svg class="roll" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Melody for line ' + (li + 1) + '">';
+      for (d = model.hi; d >= model.lo; d--) {
+        var y = top + (model.hi - d) * ROWH + ROWH / 2;
+        svg += '<line class="gl' + (Core.mod(d, model.mi.n) === 0 ? ' tonic' : '') + '" x1="' + G + '" x2="' + (W - 6) + '" y1="' + y + '" y2="' + y + '"/>';
+        svg += '<text class="gut" x="' + (G - 6) + '" y="' + (y + 3.5) + '" text-anchor="end">' + esc(Core.sargamOf(d, model.mi)) + '</text>';
+      }
+      for (b = 0; b * state.barUnits <= L.units; b++) {
+        var bx = G + 8 + b * state.barUnits * U;
+        svg += '<line class="bar" x1="' + bx + '" x2="' + bx + '" y1="' + top + '" y2="' + (top + ladderH + 44) + '"/>';
+      }
+      L.notes.forEach(function (n, ni) {
+        var x = G + 8 + n.start * U + 1, w = n.dur * U - 3, y2 = top + (model.hi - n.d) * ROWH + 1;
+        svg += '<rect class="note-r" data-l="' + li + '" data-n="' + ni + '" x="' + x + '" y="' + y2 + '" width="' + w + '" height="' + (ROWH - 2) + '" rx="2" fill-opacity="' + (0.55 + 0.45 * n.vel).toFixed(2) + '"/>';
+        var nl = label(n.d, n.midi);
+        if (nl) svg += '<text class="nt" x="' + (x + 1) + '" y="' + (top + ladderH + 15) + '">' + esc(nl) + '</text>';
+        svg += '<text class="ly" x="' + (x + 1) + '" y="' + (top + ladderH + 37) + '">' + esc(n.text) + '</text>';
+      });
+      svg += '</svg>';
+      var endN = L.notes[L.notes.length - 1];
+      var endLab = Core.sargamOf(endN.d, model.mi);
+      html += '<section class="row' + (L.index === 0 && li > 0 ? ' new-stanza' : '') + '" data-row="' + li + '">' +
+        '<div class="rowhead"><span class="rn">Line ' + (li + 1) + '</span>' +
+        '<span class="meta">' + L.count + ' syllables, ends on ' + esc(endLab) + (L.reused ? ', repeats an earlier line' : '') + '</span><span class="sp"></span>' +
+        '<button type="button" class="btn small" data-act="play" data-li="' + li + '">Play from here</button>' +
+        '<button type="button" class="btn small" data-act="take" data-li="' + li + '">New take</button></div>' +
+        '<div class="scroller">' + svg + '</div></section>';
+    });
+    rowsEl.innerHTML = html;
+    noteEls = []; rowEls = [];
+    model.lines.forEach(function (L, li) {
+      noteEls[li] = [];
+      rowEls[li] = rowsEl.querySelector('[data-row="' + li + '"]');
+    });
+    Array.prototype.forEach.call(rowsEl.querySelectorAll('.note-r'), function (el) {
+      noteEls[+el.getAttribute('data-l')][+el.getAttribute('data-n')] = el;
+    });
+    $('status').textContent = total + (total === 1 ? ' line' : ' lines') + ', ' + syl + ' syllables, ' + Core.KEYS[state.key] + ' ' + model.mi.name.split(' (')[0].toLowerCase() + ' at ' + state.bpm + ' BPM';
+  }
+
+  function render() {
+    build(); draw();
+    try { localStorage.setItem('swara:lyrics', ta.value); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* ---------- audio ---------- */
+  var AC = null, master = null, voices = [], raf = 0, playing = false, events = [], endAt = 0, lastOn = [], lastLine = -1;
+
+  function ensureAudio() {
+    if (!AC) {
+      var C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return false;
+      AC = new C();
+    }
+    if (AC.state === 'suspended') AC.resume();
+    return true;
+  }
+  function makeMaster() {
+    master = AC.createGain(); master.gain.value = 0.9;
+    var comp = AC.createDynamicsCompressor();
+    master.connect(comp); comp.connect(AC.destination);
+  }
+  function addOsc(type, freq, amp, dest, t, stopAt, detune) {
+    var o = AC.createOscillator(), a = AC.createGain();
+    o.type = type; o.frequency.value = freq; if (detune) o.detune.value = detune;
+    a.gain.value = amp; o.connect(a); a.connect(dest);
+    o.start(t); o.stop(stopAt); voices.push(o);
+    return o;
+  }
+  function voice(midi, t, dur, vel) {
+    var f = 440 * Math.pow(2, (midi - 69) / 12), g = AC.createGain(), end = t + dur, inst = state.inst, out = g;
+    if (inst === 'harmonium') {
+      var flt = AC.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 1700;
+      g.connect(flt); flt.connect(master);
+    } else g.connect(master);
+    if (inst === 'flute') {
+      var a = addOsc('sine', f, 1, out, t, end + 0.3);
+      addOsc('sine', f * 2, 0.14, out, t, end + 0.3);
+      var lfo = AC.createOscillator(), lg = AC.createGain();
+      lfo.frequency.value = 5.2; lg.gain.value = f * 0.006; lfo.connect(lg); lg.connect(a.frequency);
+      lfo.start(t); lfo.stop(end + 0.3); voices.push(lfo);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vel * 0.3, t + 0.06);
+      g.gain.setValueAtTime(vel * 0.3, Math.max(t + 0.06, end - 0.05));
+      g.gain.linearRampToValueAtTime(0, end + 0.1);
+    } else if (inst === 'harmonium') {
+      addOsc('sawtooth', f, 0.6, out, t, end + 0.3, -4);
+      addOsc('sawtooth', f, 0.6, out, t, end + 0.3, 4);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vel * 0.15, t + 0.04);
+      g.gain.setValueAtTime(vel * 0.15, Math.max(t + 0.04, end - 0.05));
+      g.gain.linearRampToValueAtTime(0, end + 0.08);
+    } else {
+      addOsc('triangle', f, 1, out, t, t + 2.6);
+      addOsc('sine', f * 2, 0.25, out, t, t + 2.6);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(vel * 0.36, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + Math.min(dur + 0.6, 2.4));
+    }
+  }
+  function droneOn(t, end) {
+    var tm = Core.midiOf(0, model.mi, state.key) - 12, i, g;
+    [tm, tm + 7].forEach(function (m) {
+      g = AC.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.5);
+      g.gain.setValueAtTime(0.05, Math.max(t + 0.5, end - 0.3)); g.gain.linearRampToValueAtTime(0, end + 0.2);
+      g.connect(master);
+      addOsc('sine', 440 * Math.pow(2, (m - 69) / 12), 1, g, t, end + 0.3);
+    });
+  }
+  function clearOn() {
+    lastOn.forEach(function (el) { el.classList.remove('on'); });
+    lastOn = [];
+  }
+  function stop() {
+    cancelAnimationFrame(raf); playing = false; lastLine = -1;
+    if (AC && master) {
+      try { master.gain.cancelScheduledValues(AC.currentTime); master.gain.setTargetAtTime(0, AC.currentTime, 0.02); } catch (e) { /* ignore */ }
+      var vs = voices; voices = [];
+      setTimeout(function () { vs.forEach(function (o) { try { o.stop(); } catch (e) { /* already stopped */ } }); }, 120);
+    }
+    clearOn();
+    $('play').textContent = 'Play';
+  }
+  function play(fromLine) {
+    if (!model || !model.lines.length || !ensureAudio()) return;
+    stop();
+    makeMaster();
+    var unit = 60 / state.bpm / 2, from = model.lines[fromLine || 0].offset, base = AC.currentTime + 0.12;
+    events = [];
+    model.lines.forEach(function (L, li) {
+      if (li < (fromLine || 0)) return;
+      L.notes.forEach(function (n, ni) {
+        var t = base + (L.offset + n.start - from) * unit, d = n.dur * unit;
+        voice(n.midi, t, d, n.vel);
+        events.push({ li: li, ni: ni, t0: t, t1: t + d });
+      });
+    });
+    endAt = base + (model.total - from) * unit;
+    if (state.drone) droneOn(base, endAt);
+    playing = true;
+    $('play').textContent = 'Stop';
+    tick();
+  }
+  function tick() {
+    if (!playing) return;
+    var now = AC.currentTime, on = [], i, e, el;
+    for (i = 0; i < events.length; i++) {
+      e = events[i];
+      if (now >= e.t0 && now < e.t1) { el = noteEls[e.li] && noteEls[e.li][e.ni]; if (el) on.push({ el: el, li: e.li }); }
+    }
+    clearOn();
+    on.forEach(function (o) { o.el.classList.add('on'); lastOn.push(o.el); });
+    if (on.length) {
+      var li = on[0].li, el0 = on[0].el, sc = el0.closest('.scroller');
+      if (li !== lastLine) { lastLine = li; if (rowEls[li] && rowEls[li].scrollIntoView) rowEls[li].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      var x = +el0.getAttribute('x');
+      if (sc && (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 60)) sc.scrollLeft = Math.max(0, x - 40);
+    }
+    if (now > endAt + 0.4) { stop(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function preview(li, ni) {
+    if (!ensureAudio()) return;
+    if (!master || playing === false) { makeMaster(); }
+    var n = model.lines[li].notes[ni];
+    voice(n.midi, AC.currentTime + 0.02, 0.5, 0.9);
+  }
+
+  /* ---------- events ---------- */
+  var timer = 0;
+  ta.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (playing) stop(); render(); }, 200);
+  });
+  function regen(clearVariants) {
+    if (playing) stop();
+    if (clearVariants) state.variants = {};
+    render();
+  }
+  $('play').addEventListener('click', function () { if (playing) stop(); else play(0); });
+  $('newMelody').addEventListener('click', function () {
+    state.seed = 1 + Math.floor(Math.random() * 99999); $('seed').value = state.seed; regen(true);
+  });
+  $('seed').addEventListener('change', function () {
+    var v = parseInt($('seed').value, 10); if (!(v >= 1)) v = 1; state.seed = v; $('seed').value = v; regen(true);
+  });
+  $('bpm').addEventListener('input', function () {
+    state.bpm = +$('bpm').value; $('bpmOut').textContent = state.bpm + ' BPM';
+    if (model) draw();
+  });
+  $('keySel').addEventListener('change', function () { state.key = +$('keySel').value; regen(false); });
+  $('modeSel').addEventListener('change', function () { state.mode = $('modeSel').value; regen(true); });
+  $('meterSel').addEventListener('change', function () { state.barUnits = +$('meterSel').value; regen(true); });
+  $('instSel').addEventListener('change', function () { state.inst = $('instSel').value; });
+  $('notSel').addEventListener('change', function () { state.notation = $('notSel').value; if (playing) stop(); draw(); });
+  $('droneCk').addEventListener('change', function () { state.drone = $('droneCk').checked; });
+  $('reuseCk').addEventListener('change', function () { state.reuse = $('reuseCk').checked; regen(true); });
+  Array.prototype.forEach.call(document.getElementsByName('range'), function (r) {
+    r.addEventListener('change', function () { if (r.checked) { state.range = +r.value; regen(true); } });
+  });
+  rowsEl.addEventListener('click', function (e) {
+    var t = e.target, btn = t.closest ? t.closest('button[data-act]') : null;
+    if (btn) {
+      var li = +btn.getAttribute('data-li');
+      if (btn.getAttribute('data-act') === 'play') play(li);
+      else { state.variants[li] = (state.variants[li] || 0) + 1; if (playing) stop(); render(); }
+      return;
+    }
+    if (t.classList && t.classList.contains('note-r')) preview(+t.getAttribute('data-l'), +t.getAttribute('data-n'));
+  });
+
+  function say(m) {
+    var el = $('copyMsg'); el.textContent = m;
+    setTimeout(function () { if (el.textContent === m) el.textContent = ''; }, 2200);
+  }
+  function exportText() {
+    var out = [Core.KEYS[state.key] + ' ' + model.mi.name + ', ' + state.bpm + ' BPM, ' + (state.barUnits / 2) + '/4', 'Numbers after note names are lengths in eighth notes.', ''];
+    model.lines.forEach(function (L, li) {
+      out.push('Line ' + (li + 1) + ': ' + L.text);
+      out.push(L.notes.map(function (n) {
+        var nm = state.notation === 'western' ? Core.westernOf(n.midi) : Core.sargamOf(n.d, model.mi);
+        return n.text + ' ' + nm + '·' + n.dur;
+      }).join('  '));
+      out.push('');
+    });
+    return out.join('\n');
+  }
+  function fallbackCopy(text) {
+    var t = document.createElement('textarea');
+    t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(t);
+    say(ok ? 'Copied' : 'Copy was blocked here');
+  }
+  $('copy').addEventListener('click', function () {
+    if (!model || !model.lines.length) { say('Nothing to copy yet'); return; }
+    var text = exportText();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { say('Copied'); }, function () { fallbackCopy(text); });
+    else fallbackCopy(text);
+  });
+
+  var saved = '';
+  try { saved = localStorage.getItem('swara:lyrics') || ''; } catch (e) { saved = ''; }
+  ta.value = saved.trim() ? saved : SAMPLE;
+  render();
+})();
+</script>
+
+</html>

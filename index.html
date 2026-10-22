@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song Tools</title>
+<meta name="description" content="Free browser tools for musicians: a chord transposer and a Sinhala lyrics melody generator.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column. Name, one sentence, two tool links with a plain description each. */
+:root {
+  --bg: #EDEFF6;
+  --surface: #FAFBFE;
+  --ink: #1B2038;
+  --muted: #5A6283;
+  --line: #CCD1E3;
+  --accent: #B4510A;
+  --indigo: #2F3F9E;
+  --font-display: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11142B; --surface: #1A1E3B; --ink: #E9EBF6; --muted: #9AA1C6;
+    --line: #333862; --accent: #FFB454; --indigo: #9DAEFF; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11142B; --surface: #1A1E3B; --ink: #E9EBF6; --muted: #9AA1C6;
+  --line: #333862; --accent: #FFB454; --indigo: #9DAEFF; color-scheme: dark;
+}
+html { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-block: 56px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(34px, 7vw, 52px);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0 0 12px;
+}
+.lead { color: var(--muted); margin: 0 0 36px; max-width: 52ch; }
+.tools { display: grid; gap: 14px; }
+.tool {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 18px 20px;
+}
+.tool:hover { border-color: var(--accent); }
+.tool:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
+.tool h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.tool p { margin: 0; color: var(--muted); }
+.tool .go { display: inline-block; margin-top: 10px; color: var(--accent); font-weight: 600; font-size: 14px; }
+footer { margin-top: 40px; font-size: 13px; color: var(--muted); max-width: 60ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Song Tools</h1>
+  <p class="lead">Free tools for writing and playing songs. They run in your browser, and nothing you type is uploaded.</p>
+  <nav class="tools" aria-label="Tools">
+    <a class="tool" href="chord-shift/">
+      <h2>Chord Shift</h2>
+      <p>Paste a chord sheet, pick a new key, and get a capo suggestion. Works with chords above lyrics or ChordPro brackets.</p>
+      <span class="go">Open Chord Shift</span>
+    </a>
+    <a class="tool" href="swara-sketch/">
+      <h2>Swara Sketch</h2>
+      <p>Type Sinhala lyrics and get a playable melody for every line, shown in sargam or Western note names.</p>
+      <span class="go">Open Swara Sketch</span>
+    </a>
+  </nav>
+  <footer>Sample songs in Chord Shift are public domain. The sample lyrics in Swara Sketch were written for this site.</footer>
+</div>
+</body>
+</html>
